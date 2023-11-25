@@ -43,8 +43,8 @@ using anet_type = loss_metric<fc_no_bias<128, avg_pool_everything<
     input_rgb_image_sized<150>
     >>>>>>>>>>>>;
 
-
-std::array<int, 1000> face_uptree_parents;
+int face_uptree_parents[50];
+//std::array<int, 2500000> face_uptree_parents;
 int array_fill_count = 0;
 std::vector<rectangle> identified_face_rectangles;
 
@@ -69,15 +69,11 @@ int main()
     for (auto face : face_detector(og_image)) {
         auto shape = shape_predictor(og_image,face);
         face_uptree_parents[array_fill_count] = array_fill_count;
-        /*identified_face_rectangles[array_fill_count] = face;*/
+        identified_face_rectangles.push_back(face);
         cout << face_uptree_parents[array_fill_count] << endl;
+        cout << identified_face_rectangles[array_fill_count] << endl;
         array_fill_count++;
-        //cout << identified_face_rectangles[array_fill_count] << endl;
-
     }
-    
-
-
 
 	cout << "Hello CMake." << endl;
 	
