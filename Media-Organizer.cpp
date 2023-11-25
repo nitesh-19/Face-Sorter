@@ -9,6 +9,7 @@
 #include <dlib/clustering.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
+#include <fstream>
 
 using namespace std;
 using namespace dlib;
@@ -46,73 +47,76 @@ using anet_type = loss_metric<fc_no_bias<128, avg_pool_everything<
 int face_uptree_parents[2500000];
 int array_fill_count = 0;
 std::vector<rectangle> identified_face_rectangles;
+std::vector<matrix<float, 0, 1>> face_descriptors_history;
+
+void recognize_faces(string path, frontal_face_detector& face_detector, shape_predictor& shape_predictor, anet_type& net) {
+	matrix<rgb_pixel> og_image;
+	load_image(og_image, path);
+	std::vector<matrix<rgb_pixel>> faces;
+
+	for (auto face : face_detector(og_image)) {
+
+		auto shape = shape_predictor(og_image, face);
+		face_uptree_parents[array_fill_count] = -1;
+		identified_face_rectangles.push_back(face);
 
 
+		std::cout << face_uptree_parents[array_fill_count] << std::endl;
+		std::cout << identified_face_rectangles[array_fill_count] << std::endl;
+
+		matrix<rgb_pixel> face_chip;
+		extract_image_chip(og_image, get_face_chip_details(shape, 150, 0.25), face_chip);
+		faces.push_back(move(face_chip));
+
+		array_fill_count++;
+	}
+
+	std::vector<matrix<float, 0, 1>> face_descriptors = net(faces);
+	face_descriptors_history.insert(face_descriptors_history.end(),
+		face_descriptors.begin(),
+		face_descriptors.end());
+	cout << "des" << face_descriptors.size() << endl;
+	int k = 0;
+	for (size_t i = 0; i < face_descriptors.size(); i++)
+	{
+		for (int k = 0; k <= array_fill_count; k++) {
+			
+			if (face_uptree_parents[k] == -1) {
+				if (length(face_descriptors_history[k] - face_descriptors[i]) < 0.6) {
+					face_uptree_parents[array_fill_count + i] = k;
+					cout << "match" << endl;
+
+				}
+				else {
+					cout << "no match" << endl;
+				}
+			}
+		}
+	}
+
+}
 
 
 int main()
 {
+
 	frontal_face_detector face_detector = get_frontal_face_detector();
 	shape_predictor shape_predictor;
 	deserialize("shape_predictor_5_face_landmarks.dat") >> shape_predictor;
 	anet_type net;
 	deserialize("dlib_face_recognition_resnet_model_v1.dat") >> net;
 
-	matrix<rgb_pixel> og_image;
+	recognize_faces("3.jpg", face_detector, shape_predictor, net);
+	recognize_faces("tanay.jpg", face_detector, shape_predictor, net);
+	recognize_faces("deep_nitesh.jpg", face_detector, shape_predictor, net);
 
-	/*for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 20; i++) {
 
-	}*/
-	load_image(og_image, "group_photo1.jpg");
+		cout << face_uptree_parents[i] << endl;
 
-	// image_window win(og_image);
-	image_window win(og_image);
-	std::vector<matrix<rgb_pixel>> faces;
-	for (auto face : face_detector(og_image)) {
-		auto shape = shape_predictor(og_image, face);
-		face_uptree_parents[array_fill_count] = -1;
-		identified_face_rectangles.push_back(face);
-		cout << face_uptree_parents[array_fill_count] << endl;
-		cout << identified_face_rectangles[array_fill_count] << endl;
-		matrix<rgb_pixel> face_chip;
-		extract_image_chip(og_image, get_face_chip_details(shape, 150, 0.25), face_chip);
-		faces.push_back(move(face_chip));
-		win.add_overlay(face);
-
-		array_fill_count++;
 	}
-
-	std::vector<matrix<float, 0, 1>> face_descriptors = net(faces);
-	cout << "des" << face_descriptors.size() << endl;
-	int k = 0;
-	for (size_t i = 0; i < face_descriptors.size(); ++i)
-	{
-		for (size_t j = i; j < face_descriptors.size(); ++j)
-		{
-			if (i == j) {
-				continue;
-			}
-			cout << k << endl;
-			k++;
-			// Faces are connected in the graph if they are close enough.  Here we check if
-			// the distance between two face descriptors is less than 0.6, which is the
-			// decision threshold the network was trained to use.  Although you can
-			// certainly use any other threshold you find useful.
-			if (length(face_descriptors[i] - face_descriptors[j]) < 0.2) {
-				cout << "relate4d" << endl;
-
-			}
-			else { cout << " not relate4d" << endl; }
-		}
-	}
+	cout << array_fill_count << endl;
 
 
-
-
-
-
-
-
-	cout << "Hello CMake." << endl;
 
 }
